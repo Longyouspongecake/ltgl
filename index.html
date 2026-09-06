@@ -1,0 +1,2260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>光缆建设施工管理工具 - 任务包与限时管理</title>
+    <style>
+        :root {
+            --primary: #2c5e9e;
+            --primary-light: #e9f0fa;
+            --primary-dark: #1d4a7c;
+            --success: #2e7d32;
+            --success-bg: #e8f5e9;
+            --warning: #f57f17;
+            --warning-bg: #fff8e1;
+            --danger: #c62828;
+            --danger-bg: #ffebee;
+            --gray: #757575;
+            --gray-bg: #f5f5f5;
+            --dark: #1a2b3c;
+            --text: #2c3e50;
+            --text-light: #7f8c8d;
+            --border: #dce1e8;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.15);
+            --radius: 12px;
+            --radius-sm: 6px;
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font);
+            background: #f0f2f5;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ========== 顶部导航 ========== */
+        .navbar {
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+        }
+        .navbar-brand .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 18px;
+        }
+        .navbar-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: var(--text-light);
+            align-items: center;
+        }
+        .navbar-stats .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .stat-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .stat-dot.pending {
+            background: var(--gray);
+        }
+        .stat-dot.active {
+            background: var(--primary);
+            animation: pulse 1.5s infinite;
+        }
+        .stat-dot.completed {
+            background: var(--success);
+        }
+        .stat-dot.overdue {
+            background: var(--danger);
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* ========== 主体布局 ========== */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            height: calc(100vh - 60px);
+        }
+
+        /* ========== 左侧面板 ========== */
+        .left-panel {
+            width: 340px;
+            min-width: 340px;
+            background: #fff;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .panel-tab {
+            flex: 1;
+            padding: 12px 16px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            color: var(--text-light);
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+            font-family: var(--font);
+            user-select: none;
+        }
+        .panel-tab:hover {
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+        .panel-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .panel-content.hidden {
+            display: none;
+        }
+
+        /* 任务包卡片（左侧列表） */
+        .pkg-card {
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            border: 2px solid var(--border);
+            background: #fff;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+        }
+        .pkg-card:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow);
+        }
+        .pkg-card.selected {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .pkg-card .pkg-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+        .pkg-card .pkg-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .pkg-card .pkg-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--dark);
+        }
+        .pkg-card .pkg-desc {
+            font-size: 12px;
+            color: var(--text-light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pkg-card .pkg-step-count {
+            font-size: 11px;
+            color: var(--text-light);
+            background: var(--gray-bg);
+            padding: 2px 8px;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+
+        /* 任务卡片（左侧列表） */
+        .task-card {
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            border: 2px solid var(--border);
+            background: #fff;
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            position: relative;
+        }
+        .task-card:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow);
+        }
+        .task-card.selected {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .task-card .task-top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .task-card .task-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--dark);
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .task-card .task-status-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+        .task-card .task-bottom {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: var(--text-light);
+            flex-wrap: wrap;
+        }
+        .task-card .task-timer-info {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .task-card .task-progress-bar {
+            height: 4px;
+            background: var(--gray-bg);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+        .task-card .task-progress-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        .badge-pending {
+            background: var(--gray-bg);
+            color: var(--gray);
+        }
+        .badge-active {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+        .badge-completed {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+        .badge-overdue {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        /* ========== 右侧面板 ========== */
+        .right-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+            gap: 12px;
+            text-align: center;
+            padding: 40px;
+        }
+        .empty-state .empty-icon {
+            font-size: 64px;
+            opacity: 0.5;
+        }
+        .empty-state .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        .empty-state .empty-desc {
+            font-size: 14px;
+            max-width: 400px;
+        }
+
+        /* 任务详情 */
+        .task-detail-header {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
+            border-left: 4px solid var(--primary);
+        }
+        .task-detail-header .detail-title {
+            flex: 1;
+            min-width: 200px;
+        }
+        .task-detail-header .detail-title h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 4px;
+        }
+        .task-detail-header .detail-title .pkg-ref {
+            font-size: 13px;
+            color: var(--text-light);
+        }
+        .task-detail-header .detail-timer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .timer-display {
+            font-size: 28px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -1px;
+            min-width: 100px;
+            text-align: center;
+        }
+        .timer-display.running {
+            color: var(--primary);
+        }
+        .timer-display.paused {
+            color: var(--warning);
+        }
+        .timer-display.overdue {
+            color: var(--danger);
+            animation: blink 1s infinite;
+        }
+        .timer-display.completed {
+            color: var(--success);
+        }
+        @keyframes blink {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        .timer-label {
+            font-size: 11px;
+            color: var(--text-light);
+            text-align: center;
+        }
+        .timer-unit {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--text-light);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            border: none;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #1b5e20;
+        }
+        .btn-warning {
+            background: var(--warning);
+            color: #fff;
+        }
+        .btn-warning:hover {
+            background: #e65100;
+        }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+        .btn-danger:hover {
+            background: #b71c1c;
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .btn-outline:hover {
+            background: var(--primary-light);
+        }
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+        }
+        .btn-xs {
+            padding: 3px 8px;
+            font-size: 10px;
+            border-radius: 3px;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 步骤卡片 */
+        .step-card {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--gray);
+            transition: var(--transition);
+        }
+        .step-card.status-pending {
+            border-left-color: var(--gray);
+        }
+        .step-card.status-active {
+            border-left-color: var(--primary);
+            box-shadow: 0 2px 20px rgba(44, 94, 158, 0.15);
+        }
+        .step-card.status-completed {
+            border-left-color: var(--success);
+            background: var(--success-bg);
+        }
+        .step-card.status-overdue {
+            border-left-color: var(--danger);
+            background: var(--danger-bg);
+            animation: shake 0.5s ease;
+        }
+        @keyframes shake {
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-5px);
+            }
+            75% {
+                transform: translateX(5px);
+            }
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--gray-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--text-light);
+            flex-shrink: 0;
+        }
+        .status-active .step-number {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+        .status-completed .step-number {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+        .status-overdue .step-number {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+        .step-name {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--dark);
+            flex: 1;
+            min-width: 120px;
+        }
+        .step-status-badge {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        .step-timer {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 18px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-light);
+        }
+        .step-timer.running {
+            color: var(--primary);
+        }
+        .step-timer.overdue {
+            color: var(--danger);
+        }
+        .step-timer.completed {
+            color: var(--success);
+        }
+        .step-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .step-body {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .step-body.hidden {
+            display: none;
+        }
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .field-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .field-group input,
+        .field-group textarea,
+        .field-group select {
+            padding: 8px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: var(--font);
+            transition: var(--transition);
+            background: #fff;
+            color: var(--text);
+            width: 100%;
+        }
+        .field-group input:focus,
+        .field-group textarea:focus,
+        .field-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(44, 94, 158, 0.15);
+        }
+        .field-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        .field-filled {
+            border-color: var(--success) !important;
+            background: var(--success-bg) !important;
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        .modal {
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 24px;
+            width: 90%;
+            max-width: 650px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .modal h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 16px;
+        }
+        .modal .form-group {
+            margin-bottom: 14px;
+        }
+        .modal .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 4px;
+        }
+        .modal .form-group input,
+        .modal .form-group textarea,
+        .modal .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: var(--font);
+            transition: var(--transition);
+        }
+        .modal .form-group input:focus,
+        .modal .form-group textarea:focus,
+        .modal .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(44, 94, 158, 0.15);
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* 步骤设置（在模态框中） */
+        .modal-step-item {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 10px;
+            background: var(--gray-bg);
+        }
+        .modal-step-item .step-item-header {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .modal-step-item .step-item-header input {
+            flex: 1;
+            min-width: 120px;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: var(--font);
+        }
+        .modal-step-item .step-item-fields {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .modal-step-item .step-item-fields input {
+            flex: 1;
+            min-width: 100px;
+            padding: 5px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: var(--font);
+            background: #fff;
+        }
+        .field-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #fff;
+            border: 1px solid var(--border);
+            padding: 3px 8px;
+            border-radius: 14px;
+            font-size: 11px;
+            color: var(--text-light);
+        }
+        .field-tag .remove-field {
+            cursor: pointer;
+            color: var(--danger);
+            font-weight: bold;
+            font-size: 12px;
+            background: none;
+            border: none;
+            padding: 0 2px;
+        }
+        .field-tag .remove-field:hover {
+            color: #b71c1c;
+        }
+
+        /* 时间单位选择器 */
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .time-input-group input[type="number"] {
+            width: 80px;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 13px;
+            text-align: center;
+        }
+        .time-input-group select {
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 12px;
+            background: #fff;
+        }
+        .duration-hint {
+            font-size: 11px;
+            color: var(--text-light);
+            margin-left: 4px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 900px) {
+            .main-container {
+                flex-direction: column;
+                height: auto;
+            }
+            .left-panel {
+                width: 100%;
+                min-width: 100%;
+                max-height: 250px;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            .right-panel {
+                padding: 12px 16px;
+            }
+            .navbar-stats {
+                display: none;
+            }
+            .task-detail-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .timer-display {
+                font-size: 22px;
+            }
+        }
+        @media (max-width: 480px) {
+            .right-panel {
+                padding: 8px;
+            }
+            .step-card {
+                padding: 12px 14px;
+            }
+            .step-actions {
+                flex-wrap: wrap;
+            }
+            .modal {
+                padding: 16px;
+                width: 95%;
+            }
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #aaa;
+        }
+
+        /* 提示 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--dark);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 300;
+            animation: slideInRight 0.3s ease;
+            box-shadow: var(--shadow-lg);
+            max-width: 350px;
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .progress-ring {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .progress-ring svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+        .progress-ring .ring-bg {
+            fill: none;
+            stroke: var(--gray-bg);
+            stroke-width: 3;
+        }
+        .progress-ring .ring-fill {
+            fill: none;
+            stroke-width: 3;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease, stroke 0.3s ease;
+        }
+        .progress-ring .ring-text {
+            z-index: 1;
+            font-size: 9px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo-icon">📡</div>
+            <span>光缆建设施工管理</span>
+        </div>
+        <div class="navbar-stats" id="navbarStats">
+            <span class="stat-item"><span class="stat-dot pending"></span>待开始: <b id="statPending">0</b></span>
+            <span class="stat-item"><span class="stat-dot active"></span>进行中: <b id="statActive">0</b></span>
+            <span class="stat-item"><span class="stat-dot completed"></span>已完成: <b id="statCompleted">0</b></span>
+            <span class="stat-item"><span class="stat-dot overdue"></span>已超时: <b id="statOverdue">0</b></span>
+        </div>
+    </nav>
+
+    <!-- 主体 -->
+    <div class="main-container">
+        <!-- 左侧面板 -->
+        <div class="left-panel">
+            <div class="panel-tabs">
+                <button class="panel-tab active" data-tab="tasks" onclick="switchTab('tasks')">📌 施工任务</button>
+                <button class="panel-tab" data-tab="packages" onclick="switchTab('packages')">📦 任务包模板</button>
+            </div>
+            <!-- 任务列表 -->
+            <div class="panel-content" id="tab-tasks">
+                <button class="btn btn-primary" onclick="openCreateTaskModal()" style="margin-bottom:4px;">+ 新建施工任务</button>
+                <div id="taskListContainer"></div>
+            </div>
+            <!-- 任务包列表 -->
+            <div class="panel-content hidden" id="tab-packages">
+                <button class="btn btn-primary" onclick="openCreatePackageModal()" style="margin-bottom:4px;">+ 新建任务包</button>
+                <div id="packageListContainer"></div>
+            </div>
+        </div>
+        <!-- 右侧面板 -->
+        <div class="right-panel" id="rightPanel">
+            <div class="empty-state">
+                <div class="empty-icon">🛠️</div>
+                <div class="empty-title">光缆建设项目管理</div>
+                <div class="empty-desc">
+                    从左侧选择一个施工任务或任务包模板，查看详细流程和限时管理。
+                    支持施工、材料、验收等全流程跟踪，时间以天、周、月为单位。
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框容器 -->
+    <div id="modalContainer"></div>
+    <!-- Toast容器 -->
+    <div id="toastContainer"></div>
+
+    <script>
+        // =============================================
+        // 数据模型 & 状态管理
+        // =============================================
+        const STORAGE_KEY = 'cableTaskManagerData';
+
+        // 默认任务包模板 (光缆建设专用)
+        const defaultPackages = [{
+            id: 'pkg_route_construction',
+            name: '光缆线路施工包',
+            description: '从路由勘察到竣工验收的完整光缆线路施工流程',
+            icon: '🚧',
+            steps: [
+                { id: 's1', name: '路由勘察与设计', requiredFields: ['路由走向', '地形地貌', '障碍物记录', '设计图纸编号'],
+                    defaultTimeLimit: 14, defaultUnit: '天' },
+                { id: 's2', name: '材料准备与进场', requiredFields: ['光缆型号', '光缆长度(km)', '接头盒数量', '金具清单', '运输车辆'],
+                    defaultTimeLimit: 7, defaultUnit: '天' },
+                { id: 's3', name: '管道/杆路施工', requiredFields: ['管道占用情况', '杆路位置', '施工机械', '安全措施'],
+                    defaultTimeLimit: 21, defaultUnit: '天' },
+                { id: 's4', name: '光缆敷设', requiredFields: ['敷设方式', '牵引张力记录', '余留长度', '弯曲半径检查'],
+                    defaultTimeLimit: 14, defaultUnit: '天' },
+                { id: 's5', name: '光缆接续与测试', requiredFields: ['熔接损耗', 'OTDR测试报告', '接头位置', '备用纤芯'],
+                    defaultTimeLimit: 10, defaultUnit: '天' },
+                { id: 's6', name: '竣工验收', requiredFields: ['竣工资料', '验收报告', '整改项', '移交清单'],
+                    defaultTimeLimit: 5, defaultUnit: '天' },
+            ]
+        }, {
+            id: 'pkg_repair',
+            name: '光缆抢修包',
+            description: '光缆故障快速定位与修复流程',
+            icon: '🔧',
+            steps: [
+                { id: 's1', name: '故障定位', requiredFields: ['故障现象', '初步判断', '测试仪表', '定位距离'],
+                    defaultTimeLimit: 1, defaultUnit: '天' },
+                { id: 's2', name: '抢修准备', requiredFields: ['抢修材料', '工具准备', '人员安排', '交通路线'],
+                    defaultTimeLimit: 0.5, defaultUnit: '天' },
+                { id: 's3', name: '光缆修复', requiredFields: ['修复方案', '熔接记录', '光缆替换长度', '接头盒安装'],
+                    defaultTimeLimit: 2, defaultUnit: '天' },
+                { id: 's4', name: '测试恢复', requiredFields: ['OTDR复测', '业务恢复确认', '现场清理', '抢修报告'],
+                    defaultTimeLimit: 0.5, defaultUnit: '天' },
+            ]
+        }, {
+            id: 'pkg_material',
+            name: '材料采购管理包',
+            description: '光缆建设材料从需求到入库的全过程管理',
+            icon: '📦',
+            steps: [
+                { id: 's1', name: '材料需求提报', requiredFields: ['材料名称', '规格型号', '单位', '需求数量', '需求日期'],
+                    defaultTimeLimit: 3, defaultUnit: '天' },
+                { id: 's2', name: '供应商选择', requiredFields: ['供应商名称', '报价单', '资质文件', '比价结果'],
+                    defaultTimeLimit: 5, defaultUnit: '天' },
+                { id: 's3', name: '采购下单', requiredFields: ['采购合同编号', '交货日期', '付款方式', '运输方式'],
+                    defaultTimeLimit: 2, defaultUnit: '天' },
+                { id: 's4', name: '到货验收', requiredFields: ['到货数量', '质量检验', '合格证', '验收记录'],
+                    defaultTimeLimit: 2, defaultUnit: '天' },
+                { id: 's5', name: '入库管理', requiredFields: ['入库单号', '仓库位置', '保管人', '库存台账更新'],
+                    defaultTimeLimit: 1, defaultUnit: '天' },
+            ]
+        }, {
+            id: 'pkg_project',
+            name: '项目管理通用包',
+            description: '适用于光缆建设项目整体管理',
+            icon: '📊',
+            steps: [
+                { id: 's1', name: '项目启动', requiredFields: ['项目目标', '干系人清单', '项目章程', '资源估算'],
+                    defaultTimeLimit: 7, defaultUnit: '天' },
+                { id: 's2', name: '计划制定', requiredFields: ['进度计划', '资源分配', '风险登记册', '沟通计划'],
+                    defaultTimeLimit: 10, defaultUnit: '天' },
+                { id: 's3', name: '执行与控制', requiredFields: ['进度跟踪', '质量检查', '变更记录', '问题日志'],
+                    defaultTimeLimit: 30, defaultUnit: '天' },
+                { id: 's4', name: '项目收尾', requiredFields: ['交付物确认', '经验教训', '项目归档', '团队解散'],
+                    defaultTimeLimit: 5, defaultUnit: '天' },
+            ]
+        }];
+
+        // 单位转换为天
+        const UNIT_TO_DAYS = {
+            '天': 1,
+            '周': 7,
+            '月': 30,
+        };
+
+        let data = loadData();
+        let selectedTaskId = null;
+        let selectedPackageId = null;
+        let activeTab = 'tasks';
+        let tickInterval = null;
+
+        // =============================================
+        // 数据持久化
+        // =============================================
+        function loadData() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && parsed.packages && parsed.tasks) {
+                        return parsed;
+                    }
+                }
+            } catch (e) { console.error('加载数据失败', e); }
+            const defaultData = {
+                packages: JSON.parse(JSON.stringify(defaultPackages)),
+                tasks: [],
+                nextId: 1,
+                nextTaskId: 1,
+                nextStepId: 1,
+            };
+            saveData(defaultData);
+            return defaultData;
+        }
+
+        function saveData(d) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+            } catch (e) { console.error('保存数据失败', e); }
+        }
+
+        function persist() {
+            saveData(data);
+            renderAll();
+        }
+
+        // =============================================
+        // 工具函数
+        // =============================================
+        function generateId(prefix) {
+            data.nextId = (data.nextId || 1) + 1;
+            return prefix + '_' + Date.now() + '_' + data.nextId;
+        }
+
+        // 将天数转换为友好显示（自动选择单位）
+        function formatDays(days) {
+            const d = Math.max(0, days);
+            if (d >= 28) {
+                return (d / 30).toFixed(1) + ' 月';
+            } else if (d >= 7) {
+                return (d / 7).toFixed(1) + ' 周';
+            } else {
+                return d.toFixed(1) + ' 天';
+            }
+        }
+
+        // 用于计时的短格式（保留一位小数天）
+        function formatDaysShort(days) {
+            return Math.max(0, days).toFixed(1) + '天';
+        }
+
+        function getTaskStatus(task) {
+            if (task.status === 'completed') return 'completed';
+            const remaining = task.totalDaysLimit - task.totalElapsedDays;
+            if (task.status === 'active' && remaining <= 0) return 'overdue';
+            return task.status;
+        }
+
+        function getStepStatus(step) {
+            if (step.status === 'completed') return 'completed';
+            const remaining = step.daysLimit - step.elapsedDays;
+            if (step.status === 'active' && remaining <= 0) return 'overdue';
+            return step.status;
+        }
+
+        function getStatusBadgeClass(status) {
+            switch (status) {
+                case 'active':
+                    return 'badge-active';
+                case 'completed':
+                    return 'badge-completed';
+                case 'overdue':
+                    return 'badge-overdue';
+                default:
+                    return 'badge-pending';
+            }
+        }
+
+        function getStatusLabel(status) {
+            switch (status) {
+                case 'active':
+                    return '进行中';
+                case 'completed':
+                    return '已完成';
+                case 'overdue':
+                    return '已超时';
+                default:
+                    return '待开始';
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        // 自定义确认对话框
+        function showConfirmModal(message, onConfirm) {
+            const modalContainer = document.getElementById('modalContainer');
+            modalContainer.innerHTML = `
+                <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+                    <div class="modal" style="max-width:400px;text-align:center;">
+                        <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
+                        <h3 style="margin-bottom:12px;">${escapeHtml(message)}</h3>
+                        <div class="modal-actions" style="justify-content:center;">
+                            <button class="btn btn-outline" onclick="closeModal()">取消</button>
+                            <button class="btn btn-danger" id="confirmDeleteBtn">确定删除</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+                closeModal();
+                onConfirm();
+            });
+        }
+
+        // =============================================
+        // 计时器引擎（每秒更新，内部以天为单位累加秒数）
+        // =============================================
+        function startTick() {
+            if (tickInterval) return;
+            tickInterval = setInterval(() => {
+                let changed = false;
+                let hasOverdue = false;
+                data.tasks.forEach(task => {
+                    if (task.totalTimerRunning && task.status === 'active') {
+                        task.totalElapsedDays += 1 / 86400; // 每天86400秒
+                        changed = true;
+                        if (task.totalElapsedDays >= task.totalDaysLimit) {
+                            task.totalTimerRunning = false;
+                            hasOverdue = true;
+                        }
+                    }
+                    task.steps.forEach(step => {
+                        if (step.timerRunning && step.status === 'active') {
+                            step.elapsedDays += 1 / 86400;
+                            changed = true;
+                            if (step.elapsedDays >= step.daysLimit) {
+                                step.timerRunning = false;
+                                hasOverdue = true;
+                            }
+                        }
+                    });
+                });
+                if (changed) {
+                    saveData(data);
+                    renderAll();
+                }
+                if (hasOverdue) {
+                    checkOverdueNotifications();
+                }
+            }, 1000);
+        }
+
+        function checkOverdueNotifications() {
+            data.tasks.forEach(task => {
+                const taskStatus = getTaskStatus(task);
+                if (taskStatus === 'overdue' && !task.totalOverdueNotified) {
+                    task.totalOverdueNotified = true;
+                    showToast(`⏰ 任务「${task.name}」总时限已超时！`, 'error');
+                    saveData(data);
+                }
+                task.steps.forEach(step => {
+                    const stepStatus = getStepStatus(step);
+                    if (stepStatus === 'overdue' && !step.overdueNotified) {
+                        step.overdueNotified = true;
+                        showToast(`⏰ 步骤「${step.name}」时限已超时！`, 'error');
+                        saveData(data);
+                    }
+                });
+            });
+            renderAll();
+        }
+
+        function stopAllTimers(taskId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            task.totalTimerRunning = false;
+            task.steps.forEach(s => s.timerRunning = false);
+        }
+
+        // =============================================
+        // 渲染引擎
+        // =============================================
+        function renderAll() {
+            renderTaskList();
+            renderPackageList();
+            renderStats();
+            if (selectedTaskId) {
+                const task = data.tasks.find(t => t.id === selectedTaskId);
+                if (task) {
+                    renderTaskDetail(task);
+                } else {
+                    selectedTaskId = null;
+                    renderEmptyState();
+                }
+            } else if (selectedPackageId) {
+                const pkg = data.packages.find(p => p.id === selectedPackageId);
+                if (pkg) {
+                    renderPackageDetail(pkg);
+                } else {
+                    selectedPackageId = null;
+                    renderEmptyState();
+                }
+            } else {
+                renderEmptyState();
+            }
+        }
+
+        function renderStats() {
+            const stats = { pending: 0, active: 0, completed: 0, overdue: 0 };
+            data.tasks.forEach(t => {
+                const status = getTaskStatus(t);
+                if (stats[status] !== undefined) stats[status]++;
+            });
+            document.getElementById('statPending').textContent = stats.pending;
+            document.getElementById('statActive').textContent = stats.active;
+            document.getElementById('statCompleted').textContent = stats.completed;
+            document.getElementById('statOverdue').textContent = stats.overdue;
+        }
+
+        function renderTaskList() {
+            const container = document.getElementById('taskListContainer');
+            if (!data.tasks.length) {
+                container.innerHTML = `<div style="text-align:center;color:var(--text-light);padding:20px;font-size:13px;">暂无任务，点击上方按钮创建</div>`;
+                return;
+            }
+            const sorted = [...data.tasks].sort((a, b) => {
+                const order = { active: 0, pending: 1, overdue: 2, completed: 3 };
+                return (order[getTaskStatus(a)] ?? 9) - (order[getTaskStatus(b)] ?? 9);
+            });
+            container.innerHTML = sorted.map(task => {
+                const status = getTaskStatus(task);
+                const totalDays = task.totalDaysLimit;
+                const elapsed = task.totalElapsedDays;
+                const pct = totalDays > 0 ? Math.min(100, (elapsed / totalDays) * 100) : 0;
+                const progressColor = status === 'overdue' ? 'var(--danger)' :
+                    status === 'completed' ? 'var(--success)' :
+                    status === 'active' ? 'var(--primary)' : 'var(--gray)';
+                const pkg = data.packages.find(p => p.id === task.packageId);
+                const completedSteps = task.steps.filter(s => s.status === 'completed').length;
+                const totalSteps = task.steps.length;
+                const remaining = Math.max(0, totalDays - elapsed);
+                return `
+                    <div class="task-card ${selectedTaskId === task.id ? 'selected' : ''}" onclick="selectTask('${task.id}')">
+                        <div class="task-top">
+                            <span class="task-name">${escapeHtml(task.name)}</span>
+                            <span class="task-status-badge ${getStatusBadgeClass(status)}">${getStatusLabel(status)}</span>
+                        </div>
+                        <div class="task-bottom">
+                            <span>📦 ${pkg ? escapeHtml(pkg.name) : '未知包'}</span>
+                            <span>📊 ${completedSteps}/${totalSteps}步</span>
+                            <span class="task-timer-info">⏱ ${formatDays(remaining)}</span>
+                        </div>
+                        <div class="task-progress-bar">
+                            <div class="task-progress-fill" style="width:${pct}%;background:${progressColor};"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderPackageList() {
+            const container = document.getElementById('packageListContainer');
+            if (!data.packages.length) {
+                container.innerHTML = `<div style="text-align:center;color:var(--text-light);padding:20px;font-size:13px;">暂无任务包，点击上方按钮创建</div>`;
+                return;
+            }
+            container.innerHTML = data.packages.map(pkg => {
+                const activeTasks = data.tasks.filter(t => t.packageId === pkg.id && getTaskStatus(t) !== 'completed')
+                    .length;
+                return `
+                    <div class="pkg-card ${selectedPackageId === pkg.id ? 'selected' : ''}" onclick="selectPackage('${pkg.id}')">
+                        <span class="pkg-icon">${pkg.icon || '📦'}</span>
+                        <div class="pkg-info">
+                            <div class="pkg-name">${escapeHtml(pkg.name)}</div>
+                            <div class="pkg-desc">${escapeHtml(pkg.description || '')}</div>
+                        </div>
+                        <span class="pkg-step-count">${pkg.steps.length}步${activeTasks > 0 ? ` · ${activeTasks}进行中` : ''}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderEmptyState() {
+            const panel = document.getElementById('rightPanel');
+            panel.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📋</div>
+                    <div class="empty-title">选择一个任务或任务包</div>
+                    <div class="empty-desc">从左侧列表中选择施工任务查看详情，或选择任务包了解其流程步骤</div>
+                </div>
+            `;
+        }
+
+        function renderTaskDetail(task) {
+            const panel = document.getElementById('rightPanel');
+            const status = getTaskStatus(task);
+            const pkg = data.packages.find(p => p.id === task.packageId);
+            const totalRemaining = Math.max(0, task.totalDaysLimit - task.totalElapsedDays);
+            const isRunning = task.totalTimerRunning && status === 'active';
+            const isOverdue = status === 'overdue';
+            const isCompleted = status === 'completed';
+            const timerClass = isOverdue ? 'overdue' : isCompleted ? 'completed' : isRunning ? 'running' : 'paused';
+            const completedSteps = task.steps.filter(s => s.status === 'completed').length;
+
+            let stepsHtml = task.steps.map((step, index) => {
+                const stepStatus = getStepStatus(step);
+                const stepRemaining = Math.max(0, step.daysLimit - step.elapsedDays);
+                const stepRunning = step.timerRunning && stepStatus === 'active';
+                const stepOverdue = stepStatus === 'overdue';
+                const stepCompleted = stepStatus === 'completed';
+                const stepTimerClass = stepOverdue ? 'overdue' : stepCompleted ? 'completed' : stepRunning ? 'running' :
+                    '';
+                const fieldsFilled = Object.entries(step.requiredFields || {}).filter(([k, v]) => v && v.trim() !==
+                    '').length;
+                const totalFields = Object.keys(step.requiredFields || {}).length;
+
+                const fieldsHtml = Object.entries(step.requiredFields || {}).map(([fieldName, fieldValue]) => {
+                    const filled = fieldValue && fieldValue.trim() !== '';
+                    return `
+                        <div class="field-group">
+                            <label>${escapeHtml(fieldName)}${filled ? ' ✅' : ''}</label>
+                            <input type="text" 
+                                   value="${escapeHtml(fieldValue || '')}" 
+                                   placeholder="请填写${escapeHtml(fieldName)}"
+                                   class="${filled ? 'field-filled' : ''}"
+                                   onchange="updateStepField('${task.id}', '${step.id}', '${escapeHtml(fieldName)}', this.value)"
+                                   ${stepCompleted ? 'disabled' : ''}
+                                   />
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="step-card status-${stepStatus}">
+                        <div class="step-header">
+                            <span class="step-number">${index + 1}</span>
+                            <span class="step-name">${escapeHtml(step.name)}</span>
+                            <span class="step-status-badge ${getStatusBadgeClass(stepStatus)}">${getStatusLabel(stepStatus)}</span>
+                            <span class="time-limit-info">⏱ 限时 ${formatDays(step.daysLimit)}</span>
+                            <span class="step-timer ${stepTimerClass}">${stepOverdue ? '⏰' : ''} ${formatDays(stepRemaining)}</span>
+                            <div class="step-actions">
+                                ${!stepCompleted && !stepOverdue ? `
+                                    ${stepStatus === 'pending' ? 
+                                        `<button class="btn btn-primary btn-sm" onclick="startStep('${task.id}', '${step.id}')">▶ 开始</button>` :
+                                        stepRunning ?
+                                        `<button class="btn btn-warning btn-sm" onclick="pauseStep('${task.id}', '${step.id}')">⏸ 暂停</button>
+                                         <button class="btn btn-success btn-sm" onclick="completeStep('${task.id}', '${step.id}')">✓ 完成</button>` :
+                                        `<button class="btn btn-primary btn-sm" onclick="resumeStep('${task.id}', '${step.id}')">▶ 继续</button>
+                                         <button class="btn btn-success btn-sm" onclick="completeStep('${task.id}', '${step.id}')">✓ 完成</button>`
+                                    }
+                                    <button class="btn btn-outline btn-sm" onclick="resetStep('${task.id}', '${step.id}')">↺ 重置</button>
+                                ` : stepOverdue ? `
+                                    <button class="btn btn-outline btn-sm" onclick="resetStep('${task.id}', '${step.id}')">↺ 重新开始</button>
+                                    <button class="btn btn-success btn-sm" onclick="completeStep('${task.id}', '${step.id}')">✓ 标记完成</button>
+                                ` : `
+                                    <button class="btn btn-outline btn-sm" onclick="resetStep('${task.id}', '${step.id}')">↺ 重做</button>
+                                `}
+                            </div>
+                        </div>
+                        <div class="step-body">
+                            <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-light);">
+                                <span>📝 关键信息补充 (${fieldsFilled}/${totalFields})</span>
+                                <span>已用时: ${formatDaysShort(step.elapsedDays)} / ${formatDays(step.daysLimit)}</span>
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
+                                ${fieldsHtml || '<span style="color:var(--text-light);font-size:12px;">此步骤无需补充信息</span>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            panel.innerHTML = `
+                <div class="task-detail-header" style="border-left-color:${isOverdue ? 'var(--danger)' : isCompleted ? 'var(--success)' : isRunning ? 'var(--primary)' : 'var(--gray)'}">
+                    <div class="detail-title">
+                        <h2>${escapeHtml(task.name)}</h2>
+                        <span class="pkg-ref">📦 ${pkg ? escapeHtml(pkg.name) : '未知任务包'} · ${task.steps.length}个步骤 · ${completedSteps}/${task.steps.length}已完成</span>
+                    </div>
+                    <div class="detail-timer">
+                        <div>
+                            <div class="timer-label">任务总限时 ${formatDays(task.totalDaysLimit)}</div>
+                            <div class="timer-display ${timerClass}">
+                                ${isOverdue ? '⏰ ' : ''}${formatDays(totalRemaining)}<span class="timer-unit"> / ${formatDays(task.totalDaysLimit)}</span>
+                            </div>
+                            <div class="timer-label">已用 ${formatDaysShort(task.totalElapsedDays)}</div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:6px;">
+                            ${!isCompleted && !isOverdue ? `
+                                ${task.status === 'pending' ? 
+                                    `<button class="btn btn-primary" onclick="startTask('${task.id}')">▶ 开始任务</button>` :
+                                    task.totalTimerRunning ?
+                                    `<button class="btn btn-warning" onclick="pauseTask('${task.id}')">⏸ 暂停</button>
+                                     <button class="btn btn-success" onclick="completeTask('${task.id}')">✓ 完成任务</button>` :
+                                    `<button class="btn btn-primary" onclick="resumeTask('${task.id}')">▶ 继续</button>
+                                     <button class="btn btn-success" onclick="completeTask('${task.id}')">✓ 完成任务</button>`
+                                }
+                                <button class="btn btn-outline btn-sm" onclick="resetTask('${task.id}')">↺ 重置</button>
+                            ` : isOverdue ? `
+                                <button class="btn btn-outline" onclick="resetTask('${task.id}')">↺ 重新开始</button>
+                                <button class="btn btn-success" onclick="completeTask('${task.id}')">✓ 标记完成</button>
+                            ` : `
+                                <button class="btn btn-outline" onclick="resetTask('${task.id}')">↺ 重新开始</button>
+                            `}
+                            <button class="btn btn-danger btn-sm" onclick="deleteTask('${task.id}')">🗑 删除任务</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    ${stepsHtml}
+                </div>
+            `;
+        }
+
+        function renderPackageDetail(pkg) {
+            const panel = document.getElementById('rightPanel');
+            const tasksUsing = data.tasks.filter(t => t.packageId === pkg.id);
+            const activeTasks = tasksUsing.filter(t => getTaskStatus(t) !== 'completed').length;
+
+            const stepsHtml = pkg.steps.map((step, index) => {
+                return `
+                    <div class="step-card status-pending" style="border-left-color:var(--primary);">
+                        <div class="step-header">
+                            <span class="step-number" style="background:var(--primary-light);color:var(--primary);">${index + 1}</span>
+                            <span class="step-name">${escapeHtml(step.name)}</span>
+                            <span class="time-limit-info">⏱ 默认限时 ${step.defaultTimeLimit} ${step.defaultUnit || '天'}</span>
+                            <span class="step-status-badge badge-pending">模板步骤</span>
+                        </div>
+                        <div class="step-body">
+                            <div style="font-size:12px;color:var(--text-light);">
+                                <b>需要补充的信息:</b>
+                                ${step.requiredFields && step.requiredFields.length > 0 ?
+                                    step.requiredFields.map(f => `<span class="field-tag" style="display:inline-flex;margin:2px;">${escapeHtml(f)}</span>`).join('') :
+                                    '<span>无</span>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            panel.innerHTML = `
+                <div class="task-detail-header" style="border-left-color:var(--primary);">
+                    <div class="detail-title">
+                        <h2>${pkg.icon || '📦'} ${escapeHtml(pkg.name)}</h2>
+                        <span class="pkg-ref">${escapeHtml(pkg.description || '')} · 共${pkg.steps.length}个步骤</span>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn btn-primary" onclick="openCreateTaskModal('${pkg.id}')">+ 用此包创建任务</button>
+                        <button class="btn btn-outline" onclick="openEditPackageModal('${pkg.id}')">✎ 编辑</button>
+                        <button class="btn btn-danger" onclick="deletePackage('${pkg.id}')">🗑 删除</button>
+                    </div>
+                </div>
+                <div style="font-size:13px;color:var(--text-light);background:var(--primary-light);padding:10px 16px;border-radius:var(--radius-sm);">
+                    使用此任务包的任务: ${tasksUsing.length}个 (${activeTasks}个进行中)
+                </div>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    ${stepsHtml}
+                </div>
+            `;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // =============================================
+        // 交互操作
+        // =============================================
+        function switchTab(tab) {
+            activeTab = tab;
+            document.querySelectorAll('.panel-tab').forEach(el => {
+                el.classList.toggle('active', el.dataset.tab === tab);
+            });
+            document.getElementById('tab-tasks').classList.toggle('hidden', tab !== 'tasks');
+            document.getElementById('tab-packages').classList.toggle('hidden', tab !== 'packages');
+        }
+
+        function selectTask(taskId) {
+            selectedTaskId = taskId;
+            selectedPackageId = null;
+            renderAll();
+        }
+
+        function selectPackage(pkgId) {
+            selectedPackageId = pkgId;
+            selectedTaskId = null;
+            renderAll();
+        }
+
+        // ---- 任务操作 ----
+        function startTask(taskId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            if (task.status === 'pending') task.status = 'active';
+            task.totalTimerRunning = true;
+            task.totalOverdueNotified = false;
+            const firstPending = task.steps.find(s => s.status === 'pending');
+            if (firstPending && task.steps.filter(s => s.status === 'active').length === 0) {
+                firstPending.status = 'active';
+                firstPending.timerRunning = true;
+            }
+            persist();
+            showToast(`任务「${task.name}」已开始`);
+        }
+
+        function pauseTask(taskId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            task.totalTimerRunning = false;
+            task.steps.forEach(s => { if (s.status === 'active') s.timerRunning = false; });
+            persist();
+        }
+
+        function resumeTask(taskId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            task.totalTimerRunning = true;
+            task.totalOverdueNotified = false;
+            task.steps.forEach(s => { if (s.status === 'active') s.timerRunning = true; });
+            persist();
+        }
+
+        function completeTask(taskId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            task.status = 'completed';
+            task.totalTimerRunning = false;
+            task.steps.forEach(s => {
+                if (s.status === 'active') { s.status = 'completed';
+                    s.timerRunning = false; }
+            });
+            persist();
+            showToast(`✅ 任务「${task.name}」已完成！`);
+        }
+
+        function resetTask(taskId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            task.status = 'pending';
+            task.totalTimerRunning = false;
+            task.totalElapsedDays = 0;
+            task.totalOverdueNotified = false;
+            task.steps.forEach(s => {
+                s.status = 'pending';
+                s.timerRunning = false;
+                s.elapsedDays = 0;
+                s.overdueNotified = false;
+            });
+            persist();
+            showToast('任务已重置');
+        }
+
+        function deleteTask(taskId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            showConfirmModal(`确定要删除任务「${task.name}」吗？此操作不可撤销。`, () => {
+                stopAllTimers(taskId);
+                data.tasks = data.tasks.filter(t => t.id !== taskId);
+                if (selectedTaskId === taskId) selectedTaskId = null;
+                persist();
+                showToast('任务已删除', 'error');
+            });
+        }
+
+        // ---- 步骤操作 ----
+        function startStep(taskId, stepId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            const step = task.steps.find(s => s.id === stepId);
+            if (!step || step.status === 'completed' || step.status === 'overdue') return;
+            if (task.status === 'pending') {
+                task.status = 'active';
+                task.totalTimerRunning = true;
+            }
+            step.status = 'active';
+            step.timerRunning = true;
+            step.overdueNotified = false;
+            persist();
+        }
+
+        function pauseStep(taskId, stepId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            const step = task.steps.find(s => s.id === stepId);
+            if (!step || step.status !== 'active') return;
+            step.timerRunning = false;
+            persist();
+        }
+
+        function resumeStep(taskId, stepId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            const step = task.steps.find(s => s.id === stepId);
+            if (!step || step.status !== 'active') return;
+            step.timerRunning = true;
+            step.overdueNotified = false;
+            persist();
+        }
+
+        function completeStep(taskId, stepId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            const step = task.steps.find(s => s.id === stepId);
+            if (!step) return;
+            step.status = 'completed';
+            step.timerRunning = false;
+            step.overdueNotified = false;
+            const nextPending = task.steps.find(s => s.status === 'pending');
+            if (nextPending && task.status === 'active') {
+                nextPending.status = 'active';
+                nextPending.timerRunning = true;
+            }
+            if (task.steps.every(s => s.status === 'completed')) {
+                completeTask(taskId);
+                return;
+            }
+            persist();
+            showToast(`步骤「${step.name}」已完成`);
+        }
+
+        function resetStep(taskId, stepId) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            const step = task.steps.find(s => s.id === stepId);
+            if (!step) return;
+            step.status = 'pending';
+            step.timerRunning = false;
+            step.elapsedDays = 0;
+            step.overdueNotified = false;
+            persist();
+        }
+
+        function updateStepField(taskId, stepId, fieldName, value) {
+            const task = data.tasks.find(t => t.id === taskId);
+            if (!task) return;
+            const step = task.steps.find(s => s.id === stepId);
+            if (!step) return;
+            if (!step.requiredFields) step.requiredFields = {};
+            step.requiredFields[fieldName] = value;
+            saveData(data);
+            if (event.target) {
+                if (value && value.trim() !== '') {
+                    event.target.classList.add('field-filled');
+                } else {
+                    event.target.classList.remove('field-filled');
+                }
+            }
+            renderAll();
+        }
+
+        // ---- 任务包操作 ----
+        function deletePackage(pkgId) {
+            const pkg = data.packages.find(p => p.id === pkgId);
+            if (!pkg) return;
+            const usingTasks = data.tasks.filter(t => t.packageId === pkgId);
+            if (usingTasks.length > 0) {
+                showToast(`无法删除任务包「${pkg.name}」，因为有 ${usingTasks.length} 个任务正在使用它。请先删除这些任务。`, 'error');
+                return;
+            }
+            showConfirmModal(`确定要删除任务包「${pkg.name}」吗？`, () => {
+                data.packages = data.packages.filter(p => p.id !== pkgId);
+                if (selectedPackageId === pkgId) selectedPackageId = null;
+                persist();
+                showToast('任务包已删除', 'error');
+            });
+        }
+
+        // =============================================
+        // 模态框 - 创建任务
+        // =============================================
+        function openCreateTaskModal(preSelectedPkgId) {
+            const packages = data.packages;
+            if (!packages.length) {
+                showToast('请先创建任务包', 'error');
+                openCreatePackageModal();
+                return;
+            }
+            const selectedPkg = packages.find(p => p.id === preSelectedPkgId) || packages[0];
+            const modalContainer = document.getElementById('modalContainer');
+            modalContainer.innerHTML = `
+                <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+                    <div class="modal">
+                        <h3>📋 创建新施工任务</h3>
+                        <div class="form-group">
+                            <label>任务名称</label>
+                            <input type="text" id="newTaskName" placeholder="如：某某路段光缆敷设工程" value="">
+                        </div>
+                        <div class="form-group">
+                            <label>选择任务包</label>
+                            <select id="newTaskPackage" onchange="updateCreateTaskSteps()">
+                                ${packages.map(p => `<option value="${p.id}" ${p.id === selectedPkg.id ? 'selected' : ''}>${p.icon || '📦'} ${escapeHtml(p.name)} (${p.steps.length}步)</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>任务总限时</label>
+                            <div class="time-input-group">
+                                <input type="number" id="newTaskTotalValue" min="0.1" step="0.1" value="30">
+                                <select id="newTaskTotalUnit">
+                                    <option value="天" selected>天</option>
+                                    <option value="周">周</option>
+                                    <option value="月">月</option>
+                                </select>
+                                <span class="duration-hint" id="totalDaysHint">= 30 天</span>
+                            </div>
+                        </div>
+                        <div id="createTaskStepsContainer" style="margin-top:12px;">
+                            <div style="font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:8px;">步骤限时设置 (可单独调整)</div>
+                            ${selectedPkg.steps.map((step, i) => `
+                                <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-bg);">
+                                    <span style="font-size:12px;font-weight:600;width:24px;color:var(--text-light);">${i+1}.</span>
+                                    <span style="flex:1;font-size:13px;">${escapeHtml(step.name)}</span>
+                                    <label style="font-size:11px;color:var(--text-light);">限时:</label>
+                                    <input type="number" class="step-time-value" min="0.1" step="0.1" value="${step.defaultTimeLimit}" data-step-idx="${i}" style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;">
+                                    <select class="step-time-unit" data-step-idx="${i}" style="padding:4px;border:1px solid var(--border);border-radius:4px;font-size:11px;">
+                                        <option value="天" ${step.defaultUnit === '天' ? 'selected' : ''}>天</option>
+                                        <option value="周" ${step.defaultUnit === '周' ? 'selected' : ''}>周</option>
+                                        <option value="月" ${step.defaultUnit === '月' ? 'selected' : ''}>月</option>
+                                    </select>
+                                    <span class="duration-hint step-days-hint" data-step-idx="${i}">= ${step.defaultTimeLimit} 天</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="modal-actions">
+                            <button class="btn btn-outline" onclick="closeModal()">取消</button>
+                            <button class="btn btn-primary" onclick="createTask()">✓ 创建任务</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('newTaskName').focus();
+            // 绑定单位变化事件
+            document.getElementById('newTaskTotalValue').addEventListener('input', updateTotalDaysHint);
+            document.getElementById('newTaskTotalUnit').addEventListener('change', updateTotalDaysHint);
+            document.querySelectorAll('.step-time-value').forEach(input => input.addEventListener('input', updateStepDaysHint));
+            document.querySelectorAll('.step-time-unit').forEach(select => select.addEventListener('change',
+            updateStepDaysHint));
+            updateTotalDaysHint();
+            document.querySelectorAll('.step-days-hint').forEach(el => updateStepDaysHintByIndex(parseInt(el.dataset
+                .stepIdx)));
+        }
+
+        function updateTotalDaysHint() {
+            const value = parseFloat(document.getElementById('newTaskTotalValue').value) || 0;
+            const unit = document.getElementById('newTaskTotalUnit').value;
+            const days = value * (UNIT_TO_DAYS[unit] || 1);
+            document.getElementById('totalDaysHint').textContent = `= ${days.toFixed(1)} 天`;
+        }
+
+        function updateStepDaysHint(event) {
+            const idx = event.target.dataset.stepIdx;
+            if (idx !== undefined) updateStepDaysHintByIndex(parseInt(idx));
+        }
+
+        function updateStepDaysHintByIndex(idx) {
+            const container = document.querySelector(`.step-time-value[data-step-idx="${idx}"]`);
+            const unitSelect = document.querySelector(`.step-time-unit[data-step-idx="${idx}"]`);
+            const hintEl = document.querySelector(`.step-days-hint[data-step-idx="${idx}"]`);
+            if (!container || !unitSelect || !hintEl) return;
+            const value = parseFloat(container.value) || 0;
+            const unit = unitSelect.value;
+            const days = value * (UNIT_TO_DAYS[unit] || 1);
+            hintEl.textContent = `= ${days.toFixed(1)} 天`;
+        }
+
+        function updateCreateTaskSteps() {
+            const pkgId = document.getElementById('newTaskPackage').value;
+            const pkg = data.packages.find(p => p.id === pkgId);
+            if (!pkg) return;
+            const container = document.getElementById('createTaskStepsContainer');
+            container.innerHTML = `
+                <div style="font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:8px;">步骤限时设置 (可单独调整)</div>
+                ${pkg.steps.map((step, i) => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-bg);">
+                        <span style="font-size:12px;font-weight:600;width:24px;color:var(--text-light);">${i+1}.</span>
+                        <span style="flex:1;font-size:13px;">${escapeHtml(step.name)}</span>
+                        <label style="font-size:11px;color:var(--text-light);">限时:</label>
+                        <input type="number" class="step-time-value" min="0.1" step="0.1" value="${step.defaultTimeLimit}" data-step-idx="${i}" style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;">
+                        <select class="step-time-unit" data-step-idx="${i}" style="padding:4px;border:1px solid var(--border);border-radius:4px;font-size:11px;">
+                            <option value="天" ${step.defaultUnit === '天' ? 'selected' : ''}>天</option>
+                            <option value="周" ${step.defaultUnit === '周' ? 'selected' : ''}>周</option>
+                            <option value="月" ${step.defaultUnit === '月' ? 'selected' : ''}>月</option>
+                        </select>
+                        <span class="duration-hint step-days-hint" data-step-idx="${i}">= ${step.defaultTimeLimit} 天</span>
+                    </div>
+                `).join('')}
+            `;
+            document.querySelectorAll('.step-time-value').forEach(input => input.addEventListener('input', updateStepDaysHint));
+            document.querySelectorAll('.step-time-unit').forEach(select => select.addEventListener('change',
+            updateStepDaysHint));
+            document.querySelectorAll('.step-days-hint').forEach(el => updateStepDaysHintByIndex(parseInt(el.dataset
+                .stepIdx)));
+        }
+
+        function createTask() {
+            const name = document.getElementById('newTaskName').value.trim();
+            if (!name) {
+                showToast('请输入任务名称', 'error');
+                return;
+            }
+            const pkgId = document.getElementById('newTaskPackage').value;
+            const pkg = data.packages.find(p => p.id === pkgId);
+            if (!pkg) {
+                showToast('请选择有效的任务包', 'error');
+                return;
+            }
+            const totalValue = parseFloat(document.getElementById('newTaskTotalValue').value) || 0;
+            const totalUnit = document.getElementById('newTaskTotalUnit').value;
+            const totalDaysLimit = totalValue * (UNIT_TO_DAYS[totalUnit] || 1);
+            if (totalDaysLimit <= 0) {
+                showToast('任务总限时必须大于0', 'error');
+                return;
+            }
+            const stepTimeValues = document.querySelectorAll('.step-time-value');
+            const stepTimeUnits = document.querySelectorAll('.step-time-unit');
+            const stepDaysLimits = [];
+            stepTimeValues.forEach((input, i) => {
+                const val = parseFloat(input.value) || 0;
+                const unit = stepTimeUnits[i].value;
+                const days = val * (UNIT_TO_DAYS[unit] || 1);
+                stepDaysLimits.push(Math.max(0.01, days));
+            });
+
+            const taskId = 'task_' + (data.nextTaskId || 1);
+            data.nextTaskId = (data.nextTaskId || 1) + 1;
+
+            const steps = pkg.steps.map((s, i) => ({
+                id: generateId('step'),
+                packageStepId: s.id,
+                name: s.name,
+                requiredFields: Object.fromEntries((s.requiredFields || []).map(f => [f, ''])),
+                daysLimit: stepDaysLimits[i] || (s.defaultTimeLimit * (UNIT_TO_DAYS[s.defaultUnit] || 1)),
+                elapsedDays: 0,
+                timerRunning: false,
+                status: 'pending',
+                overdueNotified: false,
+            }));
+
+            const task = {
+                id: taskId,
+                name: name,
+                packageId: pkg.id,
+                totalDaysLimit: totalDaysLimit,
+                totalElapsedDays: 0,
+                totalTimerRunning: false,
+                status: 'pending',
+                totalOverdueNotified: false,
+                createdAt: Date.now(),
+                steps: steps,
+            };
+
+            data.tasks.push(task);
+            selectedTaskId = task.id;
+            selectedPackageId = null;
+            persist();
+            closeModal();
+            showToast(`✅ 任务「${name}」创建成功！包含${steps.length}个步骤`);
+        }
+
+        // =============================================
+        // 模态框 - 创建/编辑任务包
+        // =============================================
+        function openCreatePackageModal() {
+            openPackageEditorModal(null);
+        }
+
+        function openEditPackageModal(pkgId) {
+            const pkg = data.packages.find(p => p.id === pkgId);
+            if (pkg) openPackageEditorModal(pkg);
+        }
+
+        function openPackageEditorModal(pkg) {
+            const isEdit = !!pkg;
+            const modalContainer = document.getElementById('modalContainer');
+            const steps = pkg ? JSON.parse(JSON.stringify(pkg.steps)) : [
+                { name: '步骤1', requiredFields: ['关键信息1'], defaultTimeLimit: 7, defaultUnit: '天' }
+            ];
+
+            modalContainer.innerHTML = `
+                <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+                    <div class="modal" style="max-width:680px;">
+                        <h3>${isEdit ? '✎ 编辑任务包' : '📦 创建任务包'}</h3>
+                        <div class="form-group">
+                            <label>任务包名称</label>
+                            <input type="text" id="pkgName" value="${isEdit ? escapeHtml(pkg.name) : ''}" placeholder="如: 光缆线路施工包">
+                        </div>
+                        <div class="form-group">
+                            <label>描述</label>
+                            <input type="text" id="pkgDesc" value="${isEdit ? escapeHtml(pkg.description || '') : ''}" placeholder="简短描述此任务包的用途">
+                        </div>
+                        <div class="form-group">
+                            <label>图标 (emoji)</label>
+                            <input type="text" id="pkgIcon" value="${isEdit ? escapeHtml(pkg.icon || '📦') : '📦'}" placeholder="如: 🚧">
+                        </div>
+                        <div style="font-size:13px;font-weight:600;color:var(--text-light);margin:12px 0 8px;">流程步骤</div>
+                        <div id="pkgStepsContainer">
+                            ${steps.map((step, i) => `
+                                <div class="modal-step-item" data-step-idx="${i}">
+                                    <div class="step-item-header">
+                                        <span style="font-size:12px;font-weight:700;color:var(--text-light);">${i+1}.</span>
+                                        <input type="text" class="pkg-step-name" value="${escapeHtml(step.name)}" placeholder="步骤名称">
+                                        <label style="font-size:11px;color:var(--text-light);">默认限时:</label>
+                                        <input type="number" class="pkg-step-time" value="${step.defaultTimeLimit || 7}" min="0.1" step="0.1" style="width:60px;">
+                                        <select class="pkg-step-unit">
+                                            <option value="天" ${step.defaultUnit === '天' ? 'selected' : ''}>天</option>
+                                            <option value="周" ${step.defaultUnit === '周' ? 'selected' : ''}>周</option>
+                                            <option value="月" ${step.defaultUnit === '月' ? 'selected' : ''}>月</option>
+                                        </select>
+                                        <button class="btn btn-danger btn-xs" onclick="removePkgStep(this)">✕</button>
+                                    </div>
+                                    <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;">需要补充的关键信息:</div>
+                                    <div class="step-item-fields" data-fields-container>
+                                        ${(step.requiredFields || []).map(f => `
+                                            <span class="field-tag">
+                                                ${escapeHtml(f)}
+                                                <button class="remove-field" onclick="removePkgField(this)">✕</button>
+                                            </span>
+                                        `).join('')}
+                                        <input type="text" class="pkg-new-field-input" placeholder="添加字段名..." 
+                                               onkeydown="if(event.key==='Enter'){addPkgField(this);event.preventDefault();}"
+                                               style="min-width:120px;flex:0 0 auto;">
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button class="btn btn-outline btn-sm" onclick="addPkgStep()" style="margin-top:8px;">+ 添加步骤</button>
+                        <div class="modal-actions">
+                            <button class="btn btn-outline" onclick="closeModal()">取消</button>
+                            <button class="btn btn-primary" onclick="${isEdit ? `saveEditPackage('${pkg.id}')` : 'saveCreatePackage()'}">
+                                ${isEdit ? '✓ 保存修改' : '✓ 创建任务包'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function addPkgStep() {
+            const container = document.getElementById('pkgStepsContainer');
+            const idx = container.children.length;
+            const div = document.createElement('div');
+            div.className = 'modal-step-item';
+            div.dataset.stepIdx = idx;
+            div.innerHTML = `
+                <div class="step-item-header">
+                    <span style="font-size:12px;font-weight:700;color:var(--text-light);">${idx+1}.</span>
+                    <input type="text" class="pkg-step-name" value="新步骤" placeholder="步骤名称">
+                    <label style="font-size:11px;color:var(--text-light);">默认限时:</label>
+                    <input type="number" class="pkg-step-time" value="7" min="0.1" step="0.1" style="width:60px;">
+                    <select class="pkg-step-unit">
+                        <option value="天" selected>天</option>
+                        <option value="周">周</option>
+                        <option value="月">月</option>
+                    </select>
+                    <button class="btn btn-danger btn-xs" onclick="removePkgStep(this)">✕</button>
+                </div>
+                <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;">需要补充的关键信息:</div>
+                <div class="step-item-fields" data-fields-container>
+                    <input type="text" class="pkg-new-field-input" placeholder="添加字段名..." 
+                           onkeydown="if(event.key==='Enter'){addPkgField(this);event.preventDefault();}"
+                           style="min-width:120px;flex:0 0 auto;">
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        function removePkgStep(btn) {
+            const item = btn.closest('.modal-step-item');
+            item.remove();
+            document.querySelectorAll('.modal-step-item').forEach((el, i) => {
+                el.dataset.stepIdx = i;
+                const numSpan = el.querySelector('.step-item-header span');
+                if (numSpan) numSpan.textContent = i + 1 + '.';
+            });
+        }
+
+        function addPkgField(input) {
+            const value = input.value.trim();
+            if (!value) return;
+            const container = input.closest('[data-fields-container]');
+            const tag = document.createElement('span');
+            tag.className = 'field-tag';
+            tag.innerHTML = `${escapeHtml(value)} <button class="remove-field" onclick="removePkgField(this)">✕</button>`;
+            container.insertBefore(tag, input);
+            input.value = '';
+            input.focus();
+        }
+
+        function removePkgField(btn) {
+            btn.closest('.field-tag').remove();
+        }
+
+        function collectPackageDataFromModal() {
+            const name = document.getElementById('pkgName').value.trim();
+            const desc = document.getElementById('pkgDesc').value.trim();
+            const icon = document.getElementById('pkgIcon').value.trim() || '📦';
+            if (!name) {
+                showToast('请输入任务包名称', 'error');
+                return null;
+            }
+            const steps = [];
+            document.querySelectorAll('.modal-step-item').forEach((item, i) => {
+                const stepName = item.querySelector('.pkg-step-name').value.trim() || ('步骤' + (i + 1));
+                const stepTime = parseFloat(item.querySelector('.pkg-step-time').value) || 7;
+                const stepUnit = item.querySelector('.pkg-step-unit').value;
+                const fields = [];
+                item.querySelectorAll('.field-tag').forEach(tag => {
+                    const text = tag.textContent.replace('✕', '').trim();
+                    if (text) fields.push(text);
+                });
+                steps.push({
+                    id: 'step_' + Date.now() + '_' + i,
+                    name: stepName,
+                    requiredFields: fields,
+                    defaultTimeLimit: Math.max(0.1, stepTime),
+                    defaultUnit: stepUnit,
+                });
+            });
+            if (!steps.length) {
+                showToast('请至少添加一个步骤', 'error');
+                return null;
+            }
+            return { name, description: desc, icon, steps };
+        }
+
+        function saveCreatePackage() {
+            const pkgData = collectPackageDataFromModal();
+            if (!pkgData) return;
+            const pkg = {
+                id: generateId('pkg'),
+                ...pkgData,
+            };
+            data.packages.push(pkg);
+            selectedPackageId = pkg.id;
+            selectedTaskId = null;
+            persist();
+            closeModal();
+            showToast(`✅ 任务包「${pkg.name}」创建成功！`);
+        }
+
+        function saveEditPackage(pkgId) {
+            const pkgData = collectPackageDataFromModal();
+            if (!pkgData) return;
+            const pkg = data.packages.find(p => p.id === pkgId);
+            if (!pkg) return;
+            pkg.name = pkgData.name;
+            pkg.description = pkgData.description;
+            pkg.icon = pkgData.icon;
+            pkg.steps = pkgData.steps;
+            data.tasks.forEach(task => {
+                if (task.packageId === pkgId) {
+                    const newSteps = pkg.steps.map(ps => {
+                        const existing = task.steps.find(s => s.packageStepId === ps.id);
+                        if (existing) {
+                            existing.name = ps.name;
+                            existing.daysLimit = ps.defaultTimeLimit * (UNIT_TO_DAYS[ps.defaultUnit] || 1);
+                            return existing;
+                        } else {
+                            return {
+                                id: generateId('step'),
+                                packageStepId: ps.id,
+                                name: ps.name,
+                                requiredFields: Object.fromEntries((ps.requiredFields || []).map(f => [f,
+                                ''])),
+                                daysLimit: ps.defaultTimeLimit * (UNIT_TO_DAYS[ps.defaultUnit] || 1),
+                                elapsedDays: 0,
+                                timerRunning: false,
+                                status: 'pending',
+                                overdueNotified: false,
+                            };
+                        }
+                    });
+                    task.steps = newSteps;
+                }
+            });
+            persist();
+            closeModal();
+            showToast(`✅ 任务包「${pkg.name}」已更新`);
+        }
+
+        function closeModal() {
+            document.getElementById('modalContainer').innerHTML = '';
+        }
+
+        // =============================================
+        // 初始化
+        // =============================================
+        function init() {
+            startTick();
+            renderAll();
+            checkOverdueNotifications();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+
+        window.addEventListener('beforeunload', () => {
+            saveData(data);
+        });
+
+        // 暴露全局函数
+        window.switchTab = switchTab;
+        window.selectTask = selectTask;
+        window.selectPackage = selectPackage;
+        window.startTask = startTask;
+        window.pauseTask = pauseTask;
+        window.resumeTask = resumeTask;
+        window.completeTask = completeTask;
+        window.resetTask = resetTask;
+        window.deleteTask = deleteTask;
+        window.startStep = startStep;
+        window.pauseStep = pauseStep;
+        window.resumeStep = resumeStep;
+        window.completeStep = completeStep;
+        window.resetStep = resetStep;
+        window.updateStepField = updateStepField;
+        window.openCreateTaskModal = openCreateTaskModal;
+        window.updateCreateTaskSteps = updateCreateTaskSteps;
+        window.createTask = createTask;
+        window.openCreatePackageModal = openCreatePackageModal;
+        window.openEditPackageModal = openEditPackageModal;
+        window.addPkgStep = addPkgStep;
+        window.removePkgStep = removePkgStep;
+        window.addPkgField = addPkgField;
+        window.removePkgField = removePkgField;
+        window.saveCreatePackage = saveCreatePackage;
+        window.saveEditPackage = saveEditPackage;
+        window.deletePackage = deletePackage;
+        window.closeModal = closeModal;
+    </script>
+</body>
+</html>
